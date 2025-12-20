@@ -4,6 +4,7 @@ import 'package:lovely/common/models/user_model.dart';
 import 'package:lovely/common/services/profile_service.dart';
 import 'package:lovely/common/services/auth_service.dart';
 import 'package:lovely/common/services/linking_service.dart';
+import 'package:lovely/common/theme/app_theme.dart';
 import 'package:lovely/features/linking/link_partner_dialog.dart';
 import 'package:lovely/features/profile/controllers/profile_controller.dart';
 import 'package:lovely/features/profile/widgets/profile_avatar.dart';
@@ -96,213 +97,309 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, child) {
-        final theme = Theme.of(context);
-        final user = _controller.displayedUser;
-        final isMe = _controller.isCurrentUserSelected;
+        // 1. Determine Theme based on Selected Tab
+        // "Him" -> Blue (Male theme), "Her" -> Pink (Female/Default theme)
+        final pageTheme = _controller.selectedTab == 'him'
+            ? AppTheme.getThemeForGender('Male')
+            : AppTheme.getThemeForGender('Female');
 
-        if (!isMe && _isEditing) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) setState(() => _isEditing = false);
-          });
-        }
+        return Theme(
+          data: pageTheme,
+          child: Builder(
+            builder: (context) {
+              // Re-fetch theme from context to ensure downstream widgets use the override
+              final theme = Theme.of(context);
+              final user = _controller.displayedUser;
+              final isMe = _controller.isCurrentUserSelected;
 
-        return Scaffold(
-          backgroundColor: theme.colorScheme.surface,
-          appBar: AppBar(
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            centerTitle: true,
-            title: ProfileToggle(
-              selectedTab: _controller.selectedTab,
-              onTabChanged: _controller.switchTab,
-            ),
-          ),
-          body: _controller.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _controller.errorMessage != null
-              ? Center(child: Text("Error: ${_controller.errorMessage}"))
-              : user == null
-              ? const Center(child: Text("No profile data found."))
-              : SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 10,
+              if (!isMe && _isEditing) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() => _isEditing = false);
+                });
+              }
+
+              if (_controller.isLoading) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (_controller.errorMessage != null) {
+                return Scaffold(
+                  body: Center(
+                    child: Text("Error: ${_controller.errorMessage}"),
                   ),
+                );
+              }
+
+              if (user == null) {
+                return const Scaffold(
+                  body: Center(child: Text("No profile data found.")),
+                );
+              }
+
+              return Scaffold(
+                backgroundColor: theme.colorScheme.surface,
+                body: SingleChildScrollView(
+                  physics: const ClampingScrollPhysics(),
                   child: Column(
                     children: [
-                      const SizedBox(height: 20),
-                      ProfileAvatar(
-                        profileUrl: user.profilePictureURL,
-                        newImageFile: _controller.newProfileImage,
-                        isEditing: isMe && _isEditing,
-                        onPickImage: _controller.pickImage,
-                      ),
-                      const SizedBox(height: 20),
-                      _buildNameSection(context, user, isMe && _isEditing),
-                      const SizedBox(height: 40),
+                      _buildHeaderStack(context, user, isMe),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 16),
+                            // Name Section
+                            _buildNameSection(
+                              context,
+                              user,
+                              isMe && _isEditing,
+                            ),
 
-                      // --- DETAILS CARD WITH ACTION BUTTON ---
-                      ProfileDetailsCard(
-                        user: user,
-                        isEditing: isMe && _isEditing,
-                        editedDob: _controller.dob,
-                        onDobChanged: _controller.setDob,
-                        // Pass the button logic here
-                        partnerActionButton: _buildPartnerActionButton(
-                          context,
-                          isMe,
-                          user,
+                            const SizedBox(height: 32),
+
+                            // Details Card
+                            ProfileDetailsCard(
+                              user: user,
+                              isEditing: isMe && _isEditing,
+                              editedDob: _controller.dob,
+                              onDobChanged: _controller.setDob,
+                              partnerActionButton: _buildPartnerActionButton(
+                                context,
+                                isMe,
+                                user,
+                              ),
+                            ),
+
+                            const SizedBox(height: 32),
+
+                            // Action Buttons (Edit / Sign Out)
+                            // Only show if it's the current user's profile
+                            if (isMe) _buildActionButtons(context, theme),
+
+                            const SizedBox(height: 100),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 25),
-
-                      // --- Edit / Save Controls ---
-                      if (isMe) ...[
-                        if (_isEditing)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton(
-                                  onPressed: _toggleEdit,
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    side: BorderSide(
-                                      color: theme.colorScheme.outline,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: const Text("Cancel"),
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: FilledButton(
-                                  onPressed: _controller.isSaving
-                                      ? null
-                                      : _handleSave,
-                                  style: FilledButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                  ),
-                                  child: _controller.isSaving
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text("Save Changes"),
-                                ),
-                              ),
-                            ],
-                          )
-                        else
-                          SizedBox(
-                            width: double.infinity,
-                            child: FilledButton.icon(
-                              onPressed: _toggleEdit,
-                              icon: const Icon(Icons.edit_rounded, size: 20),
-                              label: const Text("Edit Profile"),
-                              style: FilledButton.styleFrom(
-                                backgroundColor:
-                                    theme.colorScheme.surfaceContainerHighest,
-                                foregroundColor: theme.colorScheme.onSurface,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-
-                      // --- Sign Out Button ---
-                      SizedBox(
-                        width: double.infinity,
-                        child: TextButton.icon(
-                          onPressed: () => _controller.signOut(context),
-                          icon: Icon(
-                            Icons.logout_rounded,
-                            color: theme.colorScheme.error,
-                          ),
-                          label: Text(
-                            "Sign Out",
-                            style: TextStyle(
-                              color: theme.colorScheme.error,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 80),
                     ],
                   ),
                 ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  /// Builds the "Link" or "Unlink" button to sit inside the card
+  Widget _buildHeaderStack(BuildContext context, UserModel user, bool isMe) {
+    final theme = Theme.of(context);
+
+    // Only show toggle if a partner exists
+    final showToggle = _controller.fullUser?.partner != null;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.bottomCenter,
+      children: [
+        // 1. Gradient Background Container
+        Container(
+          height: 280,
+          width: double.infinity,
+          margin: const EdgeInsets.only(
+            bottom: 60,
+          ), // Space for avatar half-overhang
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                theme.colorScheme.primary,
+                theme.colorScheme.tertiary,
+              ],
+            ),
+            borderRadius: const BorderRadius.only(
+              bottomLeft: Radius.circular(40),
+              bottomRight: Radius.circular(40),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: theme.colorScheme.primary.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                // Custom Top Bar with Toggle
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Toggle (Hidden if no partner)
+                      if (showToggle)
+                        ProfileToggle(
+                          selectedTab: _controller.selectedTab,
+                          onTabChanged: _controller.switchTab,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // 2. Avatar Floating in the middle
+        Positioned(
+          bottom: 0,
+          child: ProfileAvatar(
+            profileUrl: user.profilePictureURL,
+            newImageFile: _controller.newProfileImage,
+            isEditing: isMe && _isEditing,
+            onPickImage: _controller.pickImage,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context, ThemeData theme) {
+    // Shared button style
+    final buttonShape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+    );
+
+    if (_isEditing) {
+      // --- Editing Mode: Cancel | Save ---
+      return Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: _toggleEdit,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                side: BorderSide(color: theme.colorScheme.outline),
+                shape: buttonShape,
+              ),
+              child: const Text("Cancel"),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: FilledButton(
+              onPressed: _controller.isSaving ? null : _handleSave,
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: buttonShape,
+                elevation: 4,
+                shadowColor: theme.colorScheme.primary.withOpacity(0.4),
+              ),
+              child: _controller.isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text("Save Changes"),
+            ),
+          ),
+        ],
+      );
+    } else {
+      // --- View Mode: Edit | Sign Out (Side by Side) ---
+      return Row(
+        children: [
+          Expanded(
+            child: FilledButton.icon(
+              onPressed: _toggleEdit,
+              icon: const Icon(Icons.edit_rounded, size: 18),
+              label: const Text("Edit"),
+              style: FilledButton.styleFrom(
+                backgroundColor: theme.colorScheme.surfaceContainerHighest
+                    .withOpacity(0.5),
+                foregroundColor: theme.colorScheme.onSurface,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 0,
+                shape: buttonShape,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _controller.signOut(context),
+              icon: Icon(
+                Icons.logout_rounded,
+                size: 18,
+                color: theme.colorScheme.error,
+              ),
+              label: Text(
+                "Sign Out",
+                style: TextStyle(
+                  color: theme.colorScheme.error,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(
+                  color: theme.colorScheme.error.withOpacity(0.5),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: buttonShape,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
   Widget? _buildPartnerActionButton(
     BuildContext context,
     bool isMe,
     UserModel user,
   ) {
-    if (!isMe) return null; // Only show for current user
+    if (!isMe) return null;
 
     final theme = Theme.of(context);
 
     if (user.partner == null) {
-      // 1. Link Button
-      return FilledButton(
+      return FilledButton.icon(
         onPressed: () => _showLinkPartnerDialog(context),
+        icon: const Icon(Icons.link_rounded, size: 16),
+        label: const Text("Link"),
         style: FilledButton.styleFrom(
           visualDensity: VisualDensity.compact,
-          backgroundColor: Colors.pinkAccent,
-          foregroundColor: Colors.white,
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: theme.colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(30),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
-        child: const Text("Link"),
       );
     } else {
-      // 2. Unlink Button
-      return OutlinedButton(
+      return OutlinedButton.icon(
         onPressed: () => _controller.unlinkPartner(context),
+        icon: const Icon(Icons.link_off_rounded, size: 16),
+        label: const Text("Unlink"),
         style: OutlinedButton.styleFrom(
           visualDensity: VisualDensity.compact,
           foregroundColor: theme.colorScheme.error,
-          side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+          side: BorderSide(color: theme.colorScheme.error.withOpacity(0.3)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(30),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
-        child: const Text("Unlink"),
       );
     }
   }
@@ -316,35 +413,41 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     if (isEditing) {
       return Form(
         key: _controller.formKey,
-        child: SizedBox(
-          width: 250,
-          child: TextFormField(
-            controller: _controller.nameController,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            decoration: const InputDecoration(
-              hintText: "Your Name",
-              border: InputBorder.none,
-              focusedBorder: UnderlineInputBorder(),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.black12),
-              ),
-            ),
-            validator: (value) =>
-                (value == null || value.isEmpty) ? 'Name is required' : null,
+        child: TextFormField(
+          controller: _controller.nameController,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: theme.colorScheme.onSurface,
           ),
+          decoration: InputDecoration(
+            hintText: "Your Name",
+            border: InputBorder.none,
+            focusedBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: theme.colorScheme.primary),
+            ),
+            enabledBorder: UnderlineInputBorder(
+              borderSide: BorderSide(color: theme.colorScheme.outlineVariant),
+            ),
+          ),
+          validator: (value) =>
+              (value == null || value.isEmpty) ? 'Name is required' : null,
         ),
       );
     }
-    return Text(
-      user.name,
-      style: theme.textTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.bold,
-        color: theme.colorScheme.onSurface,
-      ),
-      textAlign: TextAlign.center,
+    return Column(
+      children: [
+        Text(
+          user.name,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: theme.colorScheme.onSurface,
+            letterSpacing: -0.5,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        // Removed the "Single/Taken" badge
+      ],
     );
   }
 }

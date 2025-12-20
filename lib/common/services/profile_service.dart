@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:lovely/common/models/user_model.dart';
+import 'package:lovely/features/auth/providers/auth_provider.dart'; // Import AuthProvider
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -11,24 +12,14 @@ class ProfileService {
 
   // 1. Create or Update User
   Future<void> saveProfile(UserModel user) async {
-    // user.toMap() now correctly creates 'partner_uid' instead of 'partner_id'
     final Map<String, dynamic> data = user.toMap();
-
-    // We no longer need manual logic here because toMap handles
-    // the partner_uid correctly based on whether user.partner is null or not.
-    // ensure the 'partner' object key isn't sent (though toMap doesn't include it anyway)
     data.remove('partner');
-
-    // Ensure we are updating the row matching the UID
     await _supabase.from('profiles').upsert(data);
   }
 
   // 2. Get Single Profile (with joined Partner data)
   Future<UserModel> getProfile(String uid) async {
     try {
-      // Fetch profile and join the partner profile using the foreign key constraint.
-      // We alias the joined table as 'partner'.
-      // Note: If 'partner:partner_uid(*)' fails, try 'partner:profiles!profiles_partner_uid_fkey(*)'
       final response = await _supabase
           .from('profiles')
           .select('*, partner:profiles(*)')
@@ -45,7 +36,6 @@ class ProfileService {
   Future<List<UserModel>> searchProfiles(String query) async {
     final response = await _supabase
         .from('profiles')
-        // Same join logic here
         .select('*, partner:profiles(*)')
         .ilike('name', '%$query%')
         .limit(10);
@@ -80,9 +70,13 @@ final profileServiceProvider = Provider<ProfileService>((ref) {
   return ProfileService(Supabase.instance.client);
 });
 
-final currentUserUidProvider = StateProvider<String?>(
-  (ref) => Supabase.instance.client.auth.currentUser?.id,
-);
+// CHANGED: Converted to Provider and watch authState to be reactive
+final currentUserUidProvider = Provider<String?>((ref) {
+  // Watch auth changes to trigger rebuilds
+  ref.watch(authStateProvider);
+  // Return current value synchronously to avoid async race conditions
+  return Supabase.instance.client.auth.currentUser?.id;
+});
 
 final userProfileStreamProvider = StreamProvider.autoDispose<UserModel>((ref) {
   final service = ref.watch(profileServiceProvider);
