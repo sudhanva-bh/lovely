@@ -7,6 +7,8 @@ class ProfileDetailsCard extends StatelessWidget {
   final bool isEditing;
   final DateTime? editedDob;
   final Function(DateTime) onDobChanged;
+  // New: Accept a widget for the action button
+  final Widget? partnerActionButton;
 
   const ProfileDetailsCard({
     super.key,
@@ -14,6 +16,7 @@ class ProfileDetailsCard extends StatelessWidget {
     required this.isEditing,
     this.editedDob,
     required this.onDobChanged,
+    this.partnerActionButton,
   });
 
   @override
@@ -60,7 +63,9 @@ class ProfileDetailsCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+                      color: theme.colorScheme.primaryContainer.withOpacity(
+                        0.5,
+                      ),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -103,7 +108,7 @@ class ProfileDetailsCard extends StatelessWidget {
               ),
             ),
           ),
-          
+
           Divider(
             color: theme.colorScheme.outlineVariant.withOpacity(0.5),
             height: 30,
@@ -132,6 +137,8 @@ class ProfileDetailsCard extends StatelessWidget {
             bgColor: user.partner != null ? Colors.green : Colors.orange,
             label: "Partner Status",
             value: user.partner != null ? "Linked" : "Not Linked",
+            // Pass the button here
+            trailing: partnerActionButton,
           ),
         ],
       ),
@@ -145,6 +152,7 @@ class ProfileDetailsCard extends StatelessWidget {
     required Color bgColor,
     required String label,
     required String value,
+    Widget? trailing, // Add trailing widget support
   }) {
     final theme = Theme.of(context);
     return Padding(
@@ -154,7 +162,7 @@ class ProfileDetailsCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: bgColor.withOpacity(0.2), // Use opacity for bg
+              color: bgColor.withOpacity(0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor),
@@ -180,6 +188,11 @@ class ProfileDetailsCard extends StatelessWidget {
               ],
             ),
           ),
+          // Render the trailing button if provided
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing,
+          ],
         ],
       ),
     );

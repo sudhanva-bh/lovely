@@ -24,7 +24,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Dependency Injection
     final profileService = ref.read(profileServiceProvider);
     final authService = ref.read(authServiceProvider);
     final linkingService = ref.read(linkingServiceProvider);
@@ -60,17 +59,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
   }
 
-  void _showLinkPartnerDialog(BuildContext context) {
+  void _showLinkPartnerDialog(BuildContext context, {String? initialCode}) {
     _controller.fetchMyCode();
     showDialog(
       context: context,
-      builder: (context) => LinkPartnerDialog(controller: _controller),
+      builder: (context) => LinkPartnerDialog(
+        controller: _controller,
+        initialCode: initialCode,
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(userProfileStreamProvider);
+
+    ref.listen(pendingLinkingCodeProvider, (previous, next) {
+      if (next != null) {
+        ref.read(pendingLinkingCodeProvider.notifier).state = null;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _showLinkPartnerDialog(context, initialCode: next);
+          }
+        });
+      }
+    });
 
     ref.listen(userProfileStreamProvider, (previous, next) {
       next.when(
@@ -87,7 +100,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         final user = _controller.displayedUser;
         final isMe = _controller.isCurrentUserSelected;
 
-        // Auto-cancel edit mode if we switch to viewing the partner
         if (!isMe && _isEditing) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) setState(() => _isEditing = false);
@@ -129,34 +141,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                       const SizedBox(height: 20),
                       _buildNameSection(context, user, isMe && _isEditing),
                       const SizedBox(height: 40),
+
+                      // --- DETAILS CARD WITH ACTION BUTTON ---
                       ProfileDetailsCard(
                         user: user,
                         isEditing: isMe && _isEditing,
                         editedDob: _controller.dob,
                         onDobChanged: _controller.setDob,
+                        // Pass the button logic here
+                        partnerActionButton: _buildPartnerActionButton(
+                          context,
+                          isMe,
+                          user,
+                        ),
                       ),
                       const SizedBox(height: 25),
-
-                      // --- Connect Partner Button ---
-                      if (isMe && user.partner == null) ...[
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: () => _showLinkPartnerDialog(context),
-                            icon: const Icon(Icons.favorite_rounded),
-                            label: const Text("Connect with Partner"),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: Colors.pinkAccent,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
 
                       // --- Edit / Save Controls ---
                       if (isMe) ...[
@@ -263,6 +262,49 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         );
       },
     );
+  }
+
+  /// Builds the "Link" or "Unlink" button to sit inside the card
+  Widget? _buildPartnerActionButton(
+    BuildContext context,
+    bool isMe,
+    UserModel user,
+  ) {
+    if (!isMe) return null; // Only show for current user
+
+    final theme = Theme.of(context);
+
+    if (user.partner == null) {
+      // 1. Link Button
+      return FilledButton(
+        onPressed: () => _showLinkPartnerDialog(context),
+        style: FilledButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          backgroundColor: Colors.pinkAccent,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        ),
+        child: const Text("Link"),
+      );
+    } else {
+      // 2. Unlink Button
+      return OutlinedButton(
+        onPressed: () => _controller.unlinkPartner(context),
+        style: OutlinedButton.styleFrom(
+          visualDensity: VisualDensity.compact,
+          foregroundColor: theme.colorScheme.error,
+          side: BorderSide(color: theme.colorScheme.error.withOpacity(0.5)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        child: const Text("Unlink"),
+      );
+    }
   }
 
   Widget _buildNameSection(

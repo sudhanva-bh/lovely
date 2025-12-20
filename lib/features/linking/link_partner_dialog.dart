@@ -6,8 +6,13 @@ import 'package:lovely/features/linking/smooth_qr_display.dart';
 
 class LinkPartnerDialog extends StatefulWidget {
   final ProfileController controller;
+  final String? initialCode; // Add this
 
-  const LinkPartnerDialog({super.key, required this.controller});
+  const LinkPartnerDialog({
+    super.key, 
+    required this.controller,
+    this.initialCode, // Constructor param
+  });
 
   @override
   State<LinkPartnerDialog> createState() => _LinkPartnerDialogState();
@@ -15,6 +20,15 @@ class LinkPartnerDialog extends StatefulWidget {
 
 class _LinkPartnerDialogState extends State<LinkPartnerDialog> {
   final TextEditingController _partnerCodeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill if code is present
+    if (widget.initialCode != null) {
+      _partnerCodeController.text = widget.initialCode!;
+    }
+  }
 
   void _scanQR() async {
     final code = await Navigator.of(context).push(
@@ -26,6 +40,7 @@ class _LinkPartnerDialogState extends State<LinkPartnerDialog> {
     }
   }
 
+  // [Rest of the file remains exactly the same]
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -37,7 +52,6 @@ class _LinkPartnerDialogState extends State<LinkPartnerDialog> {
         final isLinking = widget.controller.isLinking;
 
         // We consider it loading if code is null OR controller explicitly says so
-        // This helps the SmoothQrDisplay know when to show the skeleton
         final isQrLoading = myCode == null;
 
         return Dialog(

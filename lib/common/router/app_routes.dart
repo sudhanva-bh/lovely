@@ -29,8 +29,6 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // If unlocked (or we are in debug mode and bypassed it), prevent going back to calc
-      // Note: In debug mode, isUnlocked is likely false, so this check naturally allows 
-      // you to manually navigate to '/calculator' if you really want to test it.
       if (isUnlocked && state.uri.toString() == '/calculator') {
         return '/';
       }
@@ -59,11 +57,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Use CustomTransitionPage for smooth entry
       GoRoute(
         path: '/',
-        pageBuilder: (context, state) => _slideTransition(
-          key: state.pageKey,
-          child: const HomeNav(),
-          begin: const Offset(0.0, 1.0), // Slide UP from bottom (Unlock feel)
-        ),
+        pageBuilder: (context, state) {
+          // --- CAPTURE THE LINKING CODE HERE ---
+          final code = state.uri.queryParameters['linkingCode'];
+          
+          return _slideTransition(
+            key: state.pageKey,
+            // Pass it to HomeNav
+            child: HomeNav(linkingCode: code),
+            begin: const Offset(0.0, 1.0), // Slide UP from bottom (Unlock feel)
+          );
+        },
       ),
       GoRoute(
         path: '/login',
@@ -88,7 +92,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// Helper for smooth fades
+// [Helper functions _fadeTransition, _slideTransition, GoRouterRefreshStream remain the same]
 CustomTransitionPage _fadeTransition({
   required LocalKey key,
   required Widget child,
@@ -103,7 +107,6 @@ CustomTransitionPage _fadeTransition({
   );
 }
 
-// Helper for slide transitions
 CustomTransitionPage _slideTransition({
   required LocalKey key,
   required Widget child,

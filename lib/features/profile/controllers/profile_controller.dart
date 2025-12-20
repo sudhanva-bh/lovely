@@ -5,6 +5,7 @@ import 'package:lovely/common/models/user_model.dart';
 import 'package:lovely/common/services/linking_service.dart';
 import 'package:lovely/common/services/profile_service.dart';
 import 'package:lovely/common/services/auth_service.dart';
+import 'package:lovely/features/linking/linking_success_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileController extends ChangeNotifier {
@@ -33,24 +34,14 @@ class ProfileController extends ChangeNotifier {
   bool _isLinking = false;
   bool get isLinking => _isLinking;
 
-  // The fully fetched user (with partner nested)
   UserModel? fullUser;
-
-  // State for the Toggle: 'him' or 'her'
   String selectedTab = 'him';
-
-  // Linking State
   String? myCoupleCode;
 
-  // --- Editing State (Only for Self) ---
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   DateTime? dob;
   File? newProfileImage;
-
-  /* ============================================================
-   * Dialog Helpers
-   * ============================================================ */
 
   void _showInfoDialog(BuildContext context, String message) {
     showDialog(
@@ -88,10 +79,6 @@ class ProfileController extends ChangeNotifier {
     );
   }
 
-  /* ============================================================
-   * Derived Getters
-   * ============================================================ */
-
   bool get isCurrentUserSelected {
     if (fullUser == null) return false;
     if (fullUser!.gender == 'Male' && selectedTab == 'him') return true;
@@ -114,10 +101,6 @@ class ProfileController extends ChangeNotifier {
       return (me.gender != 'Male') ? me : partner;
     }
   }
-
-  /* ============================================================
-   * Realtime / Stream Updates
-   * ============================================================ */
 
   void setUser(UserModel user) {
     errorMessage = null;
@@ -155,10 +138,6 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /* ============================================================
-   * Update Logic
-   * ============================================================ */
-
   void setDob(DateTime newDob) {
     if (!isCurrentUserSelected) return;
     dob = newDob;
@@ -167,13 +146,11 @@ class ProfileController extends ChangeNotifier {
 
   Future<void> pickImage() async {
     if (!isCurrentUserSelected) return;
-
     final ImagePicker picker = ImagePicker();
     final XFile? pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 80,
     );
-
     if (pickedFile != null) {
       newProfileImage = File(pickedFile.path);
       notifyListeners();
@@ -205,7 +182,6 @@ class ProfileController extends ChangeNotifier {
       );
 
       await _profileService.saveProfile(updatedUser);
-
       fullUser = updatedUser;
       newProfileImage = null;
 
@@ -222,10 +198,6 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
-  /* ============================================================
-   * Linking Logic
-   * ============================================================ */
-
   Future<void> fetchMyCode() async {
     try {
       myCoupleCode = await _linkingService.getCoupleCode();
@@ -239,7 +211,6 @@ class ProfileController extends ChangeNotifier {
     try {
       myCoupleCode = null;
       notifyListeners();
-
       myCoupleCode = await _linkingService.regenerateCoupleCode();
     } catch (e) {
       if (context.mounted) {
@@ -260,11 +231,12 @@ class ProfileController extends ChangeNotifier {
       await _linkingService.linkByCode(code.trim());
 
       if (context.mounted) {
-        _showInfoDialog(
-          context,
-          "Linked successfully! Congratulations 🎉",
+        Navigator.of(context).pop(); // Close QR dialog
+        // Show Success Confetti
+        showDialog(
+          context: context,
+          builder: (context) => const LinkingSuccessDialog(),
         );
-        Navigator.of(context).pop();
       }
       return true;
     } on PostgrestException catch (e) {
@@ -275,13 +247,11 @@ class ProfileController extends ChangeNotifier {
           title: "Linking Failed",
         );
       }
-      print(e);
       return false;
     } catch (e) {
       if (context.mounted) {
         _showWarningDialog(context, "Linking failed.\n$e");
       }
-      print(e);
       return false;
     } finally {
       _isLinking = false;
@@ -289,9 +259,49 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
-  /* ============================================================
-   * Sign Out Logic
-   * ============================================================ */
+  // --- NEW Unlink Logic ---
+  Future<void> unlinkPartner(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Unlink Partner?"),
+        content: const Text(
+          "Are you sure you want to disconnect? You will lose access to shared data.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Unlink"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      await _linkingService.unlinkProfiles();
+
+      if (context.mounted) {
+        _showInfoDialog(context, "Partner removed successfully.");
+      }
+    } catch (e) {
+      if (context.mounted) {
+        _showWarningDialog(context, "Failed to unlink.\n$e");
+      }
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   Future<void> signOut(BuildContext context) async {
     try {

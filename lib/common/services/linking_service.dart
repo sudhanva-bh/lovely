@@ -63,7 +63,7 @@ class LinkingService {
    * ----------------------------------------------------------- */
   Future<void> unlinkProfiles() async {
     await _client.rpc(
-      'unlinkProfiles',
+      'unlinkprofiles',
     );
   }
 

@@ -13,8 +13,10 @@ class ShareHelper {
     return "Hey, Lovely! 💕\n\n"
         "I'm using Lovely to connect with my partner. "
         "Pair with me using my code: ✨ *$code* ✨\n"
-        "or using: https://lovely.app/?linkingCode=$code\n\n"
-        "Download the app here: https://lovely.app/download";
+        // Updated to use your Netlify Redirect Bridge (Clickable in WhatsApp)
+        "or using: https://lovely-app.netlify.app/?linkingCode=$code\n\n"
+        // Updated download link
+        "Download the app here: https://lovely-app.netlify.app/download";
   }
 
   /// Generates the image and triggers the native share sheet

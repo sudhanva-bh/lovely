@@ -2,7 +2,10 @@ import 'dart:ui'; // Required for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart'; // Import GoRouter
 import 'package:lovely/features/profile/pages/profile_page.dart';
+// Import services to access the pendingLinkingCodeProvider
+import 'package:lovely/common/services/linking_service.dart';
 
 /// ------------------------------------------------------------
 /// RIVERPOD PROVIDER — GLOBAL NAVIGATION STATE
@@ -11,8 +14,13 @@ final homeNavIndexProvider = StateProvider<int>((ref) => 0);
 
 class HomeNav extends ConsumerStatefulWidget {
   final int initialIndex;
+  final String? linkingCode; 
 
-  const HomeNav({super.key, this.initialIndex = 0});
+  const HomeNav({
+    super.key, 
+    this.initialIndex = 0,
+    this.linkingCode, 
+  });
 
   @override
   ConsumerState<HomeNav> createState() => _HomeNavState();
@@ -23,12 +31,45 @@ class _HomeNavState extends ConsumerState<HomeNav> {
   void initState() {
     super.initState();
 
-    // Set initial index safely after the first frame
+    // 1. Handle initial index
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.initialIndex != 0) {
         ref.read(homeNavIndexProvider.notifier).state = widget.initialIndex;
       }
+      // 2. Handle deep link if present at launch
+      _processLinkingCode();
     });
+  }
+
+  // 3. Handle new deep links while app is running
+  @override
+  void didUpdateWidget(HomeNav oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.linkingCode != oldWidget.linkingCode) {
+       _processLinkingCode();
+    }
+  }
+
+  void _processLinkingCode() {
+    final code = widget.linkingCode;
+    
+    // Only proceed if there is actually a code
+    if (code != null && code.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // A. Switch to Profile Tab (Index 4)
+        ref.read(homeNavIndexProvider.notifier).state = 4;
+        
+        // B. Set the global provider so ProfilePage sees it
+        ref.read(pendingLinkingCodeProvider.notifier).state = code;
+
+        // C. CRITICAL FIX: Clear the URL!
+        // We replace the current route with '/' so that if the user clicks 
+        // the link again, GoRouter sees it as a NEW change.
+        if (mounted) {
+          context.replace('/');
+        }
+      });
+    }
   }
 
   // Original Pages
@@ -82,16 +123,11 @@ class _HomeNavState extends ConsumerState<HomeNav> {
         }
       },
       child: Scaffold(
-        // extendBody allows content to flow behind the nav bar
         extendBody: true,
-
-        // Fade transition IndexedStack
         body: FadeIndexedStack(
           index: currentIndex,
           children: _pages,
         ),
-
-        // The Custom Floating Nav Bar (Glass Effect)
         bottomNavigationBar: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           color: Colors.transparent,
