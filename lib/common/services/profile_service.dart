@@ -91,6 +91,11 @@ final userProfileStreamProvider = StreamProvider.autoDispose<UserModel>((ref) {
       .stream(primaryKey: ['uid'])
       .eq('uid', uid)
       .asyncMap((event) async {
-        return await service.getProfile(uid);
+        UserModel user = await service.getProfile(uid);
+        UserModel? userPartner = user.partner;
+        if (userPartner != null) {
+          user.copyWith(partner: userPartner.copyWith(partner: user));
+        }
+        return user;
       });
 });

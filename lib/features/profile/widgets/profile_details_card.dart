@@ -4,6 +4,7 @@ import 'package:lovely/common/models/user_model.dart';
 
 class ProfileDetailsCard extends StatelessWidget {
   final UserModel user;
+  final bool isMe;
   final bool isEditing;
   final DateTime? editedDob;
   final Function(DateTime) onDobChanged;
@@ -13,6 +14,7 @@ class ProfileDetailsCard extends StatelessWidget {
   const ProfileDetailsCard({
     super.key,
     required this.user,
+    required this.isMe,
     required this.isEditing,
     this.editedDob,
     required this.onDobChanged,
@@ -136,7 +138,7 @@ class ProfileDetailsCard extends StatelessWidget {
             iconColor: user.partner != null ? Colors.green : Colors.orange,
             bgColor: user.partner != null ? Colors.green : Colors.orange,
             label: "Partner Status",
-            value: user.partner != null ? "Linked" : "Not Linked",
+            value: user.partner != null || !isMe ? "Linked" : "Not Linked",
             // Pass the button here
             trailing: partnerActionButton,
           ),

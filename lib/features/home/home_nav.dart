@@ -1,8 +1,10 @@
 import 'dart:ui'; // Required for ImageFilter
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart'; // Import GoRouter
+import 'package:lovely/common/utils/toast.dart';
 import 'package:lovely/features/profile/pages/profile_page.dart';
 // Import services to access the pendingLinkingCodeProvider
 import 'package:lovely/common/services/linking_service.dart';
@@ -38,6 +40,15 @@ class _HomeNavState extends ConsumerState<HomeNav> {
       }
       // 2. Handle deep link if present at launch
       _processLinkingCode();
+    });
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (message.notification != null) {
+        showToast(
+          context,
+          message.notification!.body ?? 'New Notification',
+        );
+      }
     });
   }
 

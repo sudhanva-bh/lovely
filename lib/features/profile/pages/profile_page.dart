@@ -167,6 +167,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             // Details Card
                             ProfileDetailsCard(
                               user: user,
+                              isMe: isMe,
                               isEditing: isMe && _isEditing,
                               editedDob: _controller.dob,
                               onDobChanged: _controller.setDob,

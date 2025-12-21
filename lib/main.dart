@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:firebase_core/firebase_core.dart'; // Required for Firebase
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lovely/common/router/app_routes.dart';
@@ -45,8 +45,9 @@ class _MyAppState extends ConsumerState<MyApp> {
 
   void _setupAuthListener() {
     // Listen to Auth State Changes
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      data,
+    ) {
       final event = data.event;
 
       if (event == AuthChangeEvent.signedIn) {
@@ -74,8 +75,8 @@ class _MyAppState extends ConsumerState<MyApp> {
     // 3. Determine theme
     final theme = userAsync.when(
       data: (user) => AppTheme.getThemeForGender(user.gender),
-      loading:
-          () => AppTheme.getThemeForGender(null), // Default (Pink) while loading
+      loading: () =>
+          AppTheme.getThemeForGender(null), // Default (Pink) while loading
       error: (_, __) => AppTheme.getThemeForGender(null), // Default on error
     );
 
