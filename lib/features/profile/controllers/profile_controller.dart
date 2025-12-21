@@ -5,6 +5,7 @@ import 'package:lovely/common/models/user_model.dart';
 import 'package:lovely/common/services/linking_service.dart';
 import 'package:lovely/common/services/profile_service.dart';
 import 'package:lovely/common/services/auth_service.dart';
+import 'package:lovely/common/services/notification_service.dart'; // Import NotificationService
 import 'package:lovely/features/linking/linking_success_dialog.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,6 +13,7 @@ class ProfileController extends ChangeNotifier {
   final ProfileService _profileService;
   final AuthService _authService;
   final LinkingService _linkingService;
+  final NotificationService _notificationService; // Add Service
   final String _currentUserId;
   String? errorMessage;
 
@@ -19,11 +21,13 @@ class ProfileController extends ChangeNotifier {
     required ProfileService profileService,
     required AuthService authService,
     required LinkingService linkingService,
+    required NotificationService notificationService, // Add to constructor
     required String currentUserId,
-  }) : _profileService = profileService,
-       _authService = authService,
-       _linkingService = linkingService,
-       _currentUserId = currentUserId;
+  })  : _profileService = profileService,
+        _authService = authService,
+        _linkingService = linkingService,
+        _notificationService = notificationService,
+        _currentUserId = currentUserId;
 
   bool _isLoading = true;
   bool get isLoading => _isLoading;
@@ -144,6 +148,28 @@ class ProfileController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- NEW: Toggle Notifications ---
+  Future<void> toggleNotifications(bool value) async {
+    if (fullUser == null || !isCurrentUserSelected) return;
+
+    // 1. Optimistic update
+    final previousValue = fullUser!.notificationsEnabled;
+    fullUser = fullUser!.copyWith(notificationsEnabled: value);
+    notifyListeners();
+
+    try {
+      // 2. Persist to DB
+      // We re-use saveProfile logic or direct service call,
+      // here we just use the service to save the updated model.
+      await _profileService.saveProfile(fullUser!);
+    } catch (e) {
+      // 3. Revert on failure
+      fullUser = fullUser!.copyWith(notificationsEnabled: previousValue);
+      notifyListeners();
+      debugPrint("Error toggling notifications: $e");
+    }
+  }
+
   Future<void> pickImage() async {
     if (!isCurrentUserSelected) return;
     final ImagePicker picker = ImagePicker();
@@ -259,7 +285,6 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
-  // --- NEW Unlink Logic ---
   Future<void> unlinkPartner(BuildContext context) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
@@ -303,8 +328,13 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
+  // --- UPDATED: Sign Out with Token Cleanup ---
   Future<void> signOut(BuildContext context) async {
     try {
+      // 1. Remove the token for this specific device
+      await _notificationService.removeToken();
+
+      // 2. Sign out of Supabase
       await _authService.signOut();
     } catch (e) {
       if (context.mounted) {

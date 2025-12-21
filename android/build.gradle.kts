@@ -1,3 +1,16 @@
+// 1. ADD THIS BUILDSCRIPT BLOCK AT THE TOP
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        // The Google Services plugin class path
+        classpath("com.google.gms:google-services:4.4.0")
+    }
+}
+
+// 2. The rest of your existing file follows below...
 allprojects {
     repositories {
         google()

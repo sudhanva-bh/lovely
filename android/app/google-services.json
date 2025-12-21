@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "810202390938",
+    "project_id": "lovely-95dd9",
+    "storage_bucket": "lovely-95dd9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:810202390938:android:4dcc84c9db538e32721a23",
+        "android_client_info": {
+          "package_name": "com.example.lovely"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCvtBVrKM-IqFfDXGXVDxnDhczdNKhKlAc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

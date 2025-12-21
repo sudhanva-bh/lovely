@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lovely/common/models/user_model.dart';
+import 'package:lovely/common/services/notification_service.dart';
 import 'package:lovely/common/services/profile_service.dart';
 import 'package:lovely/common/services/auth_service.dart';
 import 'package:lovely/common/services/linking_service.dart';
@@ -29,11 +30,15 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final authService = ref.read(authServiceProvider);
     final linkingService = ref.read(linkingServiceProvider);
     final userId = ref.read(currentUserUidProvider);
+    final notificationService = ref.read(
+      notificationServiceProvider,
+    ); // Add provider import if needed
 
     _controller = ProfileController(
       profileService: profileService,
       authService: authService,
       linkingService: linkingService,
+      notificationService: notificationService, // Pass it here
       currentUserId: userId ?? '',
     );
   }

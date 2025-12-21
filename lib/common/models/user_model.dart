@@ -9,6 +9,7 @@ class UserModel {
   final String profilePictureURL;
   final String? coupleCode; // Added field
   final UserModel? partner;
+  final bool notificationsEnabled;
 
   UserModel({
     required this.uid,
@@ -18,6 +19,7 @@ class UserModel {
     required this.profilePictureURL,
     this.coupleCode,
     this.partner,
+    this.notificationsEnabled = true,
   });
 
   UserModel copyWith({
@@ -28,6 +30,7 @@ class UserModel {
     String? profilePictureURL,
     String? coupleCode,
     UserModel? partner,
+    bool? notificationsEnabled,
   }) {
     return UserModel(
       uid: uid ?? this.uid,
@@ -37,6 +40,7 @@ class UserModel {
       profilePictureURL: profilePictureURL ?? this.profilePictureURL,
       coupleCode: coupleCode ?? this.coupleCode,
       partner: partner ?? this.partner,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
     );
   }
 
@@ -49,6 +53,7 @@ class UserModel {
       'profile_picture_url': profilePictureURL,
       'couple_code': coupleCode, // Added mapping
       'partner_uid': partner?.uid,
+      'notifications_enabled': notificationsEnabled,
     };
   }
 
@@ -74,6 +79,7 @@ class UserModel {
       profilePictureURL: (map['profile_picture_url'] as String?) ?? '',
       coupleCode: map['couple_code'] as String?, // Added mapping
       partner: partnerModel,
+      notificationsEnabled: map['notifications_enabled'] as bool? ?? true,
     );
   }
 
@@ -85,27 +91,5 @@ class UserModel {
   @override
   String toString() {
     return 'UserModel(uid: $uid, name: $name, dob: $dob, gender: $gender, profilePictureURL: $profilePictureURL, partner: $partner)';
-  }
-
-  @override
-  bool operator ==(covariant UserModel other) {
-    if (identical(this, other)) return true;
-
-    return other.uid == uid &&
-        other.name == name &&
-        other.dob == dob &&
-        other.gender == gender &&
-        other.profilePictureURL == profilePictureURL &&
-        other.partner == partner;
-  }
-
-  @override
-  int get hashCode {
-    return uid.hashCode ^
-        name.hashCode ^
-        dob.hashCode ^
-        gender.hashCode ^
-        profilePictureURL.hashCode ^
-        partner.hashCode;
   }
 }
