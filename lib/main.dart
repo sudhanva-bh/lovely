@@ -3,8 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lovely/common/router/app_routes.dart';
-import 'package:lovely/common/services/profile_service.dart'; // Import ProfileService
-import 'package:lovely/common/services/notification_service.dart'; // Import NotificationService
+import 'package:lovely/common/services/profile_service.dart'; 
+import 'package:lovely/common/services/notification_service.dart'; 
 import 'package:lovely/common/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -50,7 +50,9 @@ class _MyAppState extends ConsumerState<MyApp> {
     ) {
       final event = data.event;
 
-      if (event == AuthChangeEvent.signedIn) {
+      // FIXED: Added AuthChangeEvent.initialSession
+      // This ensures initialization happens when the app restarts and the user is already logged in.
+      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) {
         // User just logged in (or app opened with session)
         // Check permissions and save the FCM Token
         ref.read(notificationServiceProvider).initializeAndSaveToken();
@@ -86,7 +88,7 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       // Dynamic Theme
       theme: theme,
-      // Force light mode logic (since our 'dark' theme is handled via the dynamic generator for now)
+      // Force light mode logic
       themeMode: ThemeMode.light,
 
       // Connect GoRouter

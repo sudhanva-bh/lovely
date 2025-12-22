@@ -123,19 +123,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 });
               }
 
-              if (_controller.isLoading) {
+              if (_controller.isLoading || _controller.errorMessage != null) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              if (_controller.errorMessage != null) {
-                return Scaffold(
-                  body: Center(
-                    child: Text("Error: ${_controller.errorMessage}"),
-                  ),
-                );
-              }
+              // if (_controller.errorMessage != null) {
+              //   return Scaffold(
+              //     body: Center(
+              //       child: Text("Error: ${_controller.errorMessage}"),
+              //     ),
+              //   );
+              // }
 
               if (user == null) {
                 return const Scaffold(

@@ -1,12 +1,12 @@
-import 'dart:ui'; // Required for ImageFilter
+import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart'; // Import GoRouter
-import 'package:lovely/common/utils/toast.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lovely/common/services/notification_service.dart';
+import 'package:lovely/common/utils/toast.dart'; // Added Import
 import 'package:lovely/features/profile/pages/profile_page.dart';
-// Import services to access the pendingLinkingCodeProvider
 import 'package:lovely/common/services/linking_service.dart';
 
 /// ------------------------------------------------------------
@@ -16,12 +16,12 @@ final homeNavIndexProvider = StateProvider<int>((ref) => 0);
 
 class HomeNav extends ConsumerStatefulWidget {
   final int initialIndex;
-  final String? linkingCode; 
+  final String? linkingCode;
 
   const HomeNav({
-    super.key, 
+    super.key,
     this.initialIndex = 0,
-    this.linkingCode, 
+    this.linkingCode,
   });
 
   @override
@@ -33,20 +33,46 @@ class _HomeNavState extends ConsumerState<HomeNav> {
   void initState() {
     super.initState();
 
-    // 1. Handle initial index
+    // ... (Your existing initial index logic)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (widget.initialIndex != 0) {
         ref.read(homeNavIndexProvider.notifier).state = widget.initialIndex;
       }
-      // 2. Handle deep link if present at launch
       _processLinkingCode();
     });
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      if (message.notification != null) {
+      if (!mounted) return;
+
+      final notification = message.notification;
+      final data = message.data;
+
+      // 1. Get Title & Body (Priority: Notification Object -> Data Object)
+      // Your logs confirm it comes in `notification`, so this first check works.
+      String? title =
+          notification?.title ?? data['title'] ?? data['content_title'];
+      String? body =
+          notification?.body ??
+          data['body'] ??
+          data['content_body'] ??
+          data['message'];
+
+      // 2. Get Image URL (Standard Firebase keys)
+      final android = notification?.android;
+      final apple = notification?.apple;
+      String? imageUrl =
+          android?.imageUrl ??
+          apple?.imageUrl ??
+          data['image'] ??
+          data['image_url'];
+
+      // 3. Show Toast if we have content
+      if (title != null || body != null) {
         showToast(
           context,
-          message.notification!.body ?? 'New Notification',
+          title ?? "New Notification",
+          body: body,
+          imageUrl: imageUrl,
         );
       }
     });
@@ -57,24 +83,24 @@ class _HomeNavState extends ConsumerState<HomeNav> {
   void didUpdateWidget(HomeNav oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.linkingCode != oldWidget.linkingCode) {
-       _processLinkingCode();
+      _processLinkingCode();
     }
   }
 
   void _processLinkingCode() {
     final code = widget.linkingCode;
-    
+
     // Only proceed if there is actually a code
     if (code != null && code.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         // A. Switch to Profile Tab (Index 4)
         ref.read(homeNavIndexProvider.notifier).state = 4;
-        
+
         // B. Set the global provider so ProfilePage sees it
         ref.read(pendingLinkingCodeProvider.notifier).state = code;
 
         // C. CRITICAL FIX: Clear the URL!
-        // We replace the current route with '/' so that if the user clicks 
+        // We replace the current route with '/' so that if the user clicks
         // the link again, GoRouter sees it as a NEW change.
         if (mounted) {
           context.replace('/');
