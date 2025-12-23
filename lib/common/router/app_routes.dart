@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart'; // Import for kDebugMode
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +8,17 @@ import 'package:lovely/features/calculator/pages/calculator_screen.dart';
 import 'package:lovely/features/setup/pages/setup_page.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+// 1. GLOBAL KEY DEFINITION
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final isUnlockedProvider = StateProvider<bool>((ref) => false);
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final isUnlocked = ref.watch(isUnlockedProvider);
 
   return GoRouter(
+    // 2. ASSIGN THE KEY HERE
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/',
     refreshListenable: GoRouterRefreshStream(
       Supabase.instance.client.auth.onAuthStateChange,

@@ -31,7 +31,7 @@ class LoginPage extends StatelessWidget {
             const Icon(Icons.local_mall, size: 80, color: Color(0xFF6200EE)),
             const SizedBox(height: 24),
             Text(
-              'Welcome to Local.ly',
+              'Welcome to Lovely',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 48),

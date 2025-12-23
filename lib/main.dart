@@ -3,9 +3,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lovely/common/router/app_routes.dart';
-import 'package:lovely/common/services/profile_service.dart'; 
-import 'package:lovely/common/services/notification_service.dart'; 
+import 'package:lovely/common/services/profile_service.dart';
+import 'package:lovely/common/services/notification_service.dart';
 import 'package:lovely/common/theme/app_theme.dart';
+import 'package:lovely/common/widgets/update_listener.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -52,7 +53,8 @@ class _MyAppState extends ConsumerState<MyApp> {
 
       // FIXED: Added AuthChangeEvent.initialSession
       // This ensures initialization happens when the app restarts and the user is already logged in.
-      if (event == AuthChangeEvent.signedIn || event == AuthChangeEvent.initialSession) {
+      if (event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.initialSession) {
         // User just logged in (or app opened with session)
         // Check permissions and save the FCM Token
         ref.read(notificationServiceProvider).initializeAndSaveToken();
@@ -83,13 +85,17 @@ class _MyAppState extends ConsumerState<MyApp> {
     );
 
     return MaterialApp.router(
-      title: 'Local.ly',
+      title: 'Lovely',
       debugShowCheckedModeBanner: false,
 
       // Dynamic Theme
       theme: theme,
       // Force light mode logic
       themeMode: ThemeMode.light,
+      builder: (context, child) {
+        // Wrap the entire app routing in the listener
+        return UpdateListenerWrapper(child: child!);
+      },
 
       // Connect GoRouter
       routerConfig: goRouter,

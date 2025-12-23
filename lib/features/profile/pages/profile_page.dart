@@ -30,16 +30,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final authService = ref.read(authServiceProvider);
     final linkingService = ref.read(linkingServiceProvider);
     final userId = ref.read(currentUserUidProvider);
-    final notificationService = ref.read(
-      notificationServiceProvider,
-    ); // Add provider import if needed
+    final notificationService = ref.read(notificationServiceProvider);
 
     _controller = ProfileController(
       profileService: profileService,
       authService: authService,
       linkingService: linkingService,
-      notificationService: notificationService, // Pass it here
+      notificationService: notificationService,
       currentUserId: userId ?? '',
+    );
+
+    // FIX: Check if the provider already has data immediately.
+    // Since main.dart watches this provider, it might already be loaded.
+    // ref.listen in build only catches *subsequent* changes.
+    final userAsync = ref.read(userProfileStreamProvider);
+    userAsync.whenOrNull(
+      data: (user) => _controller.setUser(user),
+      error: (e, stack) => _controller.setError(e.toString()),
     );
   }
 
@@ -78,6 +85,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep watching to ensure the provider stays alive and updates
     ref.watch(userProfileStreamProvider);
 
     ref.listen(pendingLinkingCodeProvider, (previous, next) {
@@ -95,15 +103,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       next.when(
         data: (user) => _controller.setUser(user),
         error: (e, stack) => _controller.setError(e.toString()),
-        loading: () {},
+        loading: () {
+          // Optional: You could set loading here if you want to show
+          // loading spinner on subsequent refreshes, but usually
+          // keeping the old data is better UX.
+        },
       );
     });
 
     return ListenableBuilder(
       listenable: _controller,
       builder: (context, child) {
-        // 1. Determine Theme based on Selected Tab
-        // "Him" -> Blue (Male theme), "Her" -> Pink (Female/Default theme)
         final pageTheme = _controller.selectedTab == 'him'
             ? AppTheme.getThemeForGender('Male')
             : AppTheme.getThemeForGender('Female');
@@ -112,7 +122,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           data: pageTheme,
           child: Builder(
             builder: (context) {
-              // Re-fetch theme from context to ensure downstream widgets use the override
               final theme = Theme.of(context);
               final user = _controller.displayedUser;
               final isMe = _controller.isCurrentUserSelected;
@@ -123,19 +132,19 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 });
               }
 
-              if (_controller.isLoading || _controller.errorMessage != null) {
+              if (_controller.isLoading) {
                 return const Scaffold(
                   body: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              // if (_controller.errorMessage != null) {
-              //   return Scaffold(
-              //     body: Center(
-              //       child: Text("Error: ${_controller.errorMessage}"),
-              //     ),
-              //   );
-              // }
+              if (_controller.errorMessage != null) {
+                return Scaffold(
+                  body: Center(
+                    child: Text("Error: ${_controller.errorMessage}"),
+                  ),
+                );
+              }
 
               if (user == null) {
                 return const Scaffold(
@@ -155,7 +164,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         child: Column(
                           children: [
                             const SizedBox(height: 16),
-                            // Name Section
                             _buildNameSection(
                               context,
                               user,
@@ -164,7 +172,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
                             const SizedBox(height: 32),
 
-                            // Details Card
                             ProfileDetailsCard(
                               user: user,
                               isMe: isMe,
@@ -180,8 +187,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
                             const SizedBox(height: 32),
 
-                            // Action Buttons (Edit / Sign Out)
-                            // Only show if it's the current user's profile
                             if (isMe) _buildActionButtons(context, theme),
 
                             const SizedBox(height: 100),
@@ -201,21 +206,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   Widget _buildHeaderStack(BuildContext context, UserModel user, bool isMe) {
     final theme = Theme.of(context);
-
-    // Only show toggle if a partner exists
     final showToggle = _controller.fullUser?.partner != null;
 
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.bottomCenter,
       children: [
-        // 1. Gradient Background Container
         Container(
           height: 280,
           width: double.infinity,
-          margin: const EdgeInsets.only(
-            bottom: 60,
-          ), // Space for avatar half-overhang
+          margin: const EdgeInsets.only(bottom: 60),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -241,13 +241,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             child: Column(
               children: [
                 const SizedBox(height: 10),
-                // Custom Top Bar with Toggle
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Toggle (Hidden if no partner)
                       if (showToggle)
                         ProfileToggle(
                           selectedTab: _controller.selectedTab,
@@ -260,8 +258,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
           ),
         ),
-
-        // 2. Avatar Floating in the middle
         Positioned(
           bottom: 0,
           child: ProfileAvatar(
@@ -276,13 +272,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
   }
 
   Widget _buildActionButtons(BuildContext context, ThemeData theme) {
-    // Shared button style
     final buttonShape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(20),
     );
 
     if (_isEditing) {
-      // --- Editing Mode: Cancel | Save ---
       return Row(
         children: [
           Expanded(
@@ -321,7 +315,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ],
       );
     } else {
-      // --- View Mode: Edit | Sign Out (Side by Side) ---
       return Row(
         children: [
           Expanded(
@@ -452,7 +445,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           textAlign: TextAlign.center,
         ),
-        // Removed the "Single/Taken" badge
       ],
     );
   }
