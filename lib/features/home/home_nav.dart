@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lovely/common/services/notification_service.dart';
 import 'package:lovely/common/utils/toast.dart'; // Added Import
 import 'package:lovely/features/profile/pages/profile_page.dart';
 import 'package:lovely/common/services/linking_service.dart';

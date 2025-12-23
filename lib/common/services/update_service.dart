@@ -14,9 +14,11 @@ class UpdateService {
   /// Checks if a newer version is available in Supabase
   Future<AppUpdateInfo?> checkForUpdate() async {
     try {
-      // 1. Get current local version
+      // 1. Get current local version & build number
       final packageInfo = await PackageInfo.fromPlatform();
       final currentVersion = Version.parse(packageInfo.version);
+      // packageInfo.buildNumber is a String, parse it safely to int
+      final currentBuild = int.tryParse(packageInfo.buildNumber) ?? 0;
 
       // 2. Get latest version from Supabase
       // Assuming you always want the row with the highest build_number or created_at
@@ -31,17 +33,32 @@ class UpdateService {
 
       final latestVersionStr = response['version'] as String;
       final latestVersion = Version.parse(latestVersionStr);
+
+      // IMPORTANT: Ensure your Supabase table has a 'build_number' (int8) column
+      // If it's missing or null, default to 0
+      final latestBuild = response['build_number'] as int? ?? 0;
+
       final downloadUrl = response['download_url'] as String;
       final isMandatory = response['is_mandatory'] as bool;
       final releaseNotes = response['release_notes'] as String?;
 
-      print("----------------------------------------------------------------");
-      print("Current Version: $currentVersion, Latest Version: $latestVersion");
-      print(latestVersion > currentVersion);
-      print("----------------------------------------------------------------");
+      // Debugging logs
+      // print("Local: $currentVersion ($currentBuild) vs Remote: $latestVersion ($latestBuild)");
 
-      // 3. Compare
+      // 3. Compare Logic
+
+      // Case A: The semantic version is strictly higher (e.g., 1.0.1 > 1.0.0)
       if (latestVersion > currentVersion) {
+        return AppUpdateInfo(
+          version: latestVersionStr,
+          url: downloadUrl,
+          isMandatory: isMandatory,
+          releaseNotes: releaseNotes,
+        );
+      }
+      // Case B: The version strings are equal, but the Remote Build Number is higher
+      // (e.g., Local: 1.0.0 (10) vs Remote: 1.0.0 (12))
+      else if (latestVersion == currentVersion && latestBuild > currentBuild) {
         return AppUpdateInfo(
           version: latestVersionStr,
           url: downloadUrl,
