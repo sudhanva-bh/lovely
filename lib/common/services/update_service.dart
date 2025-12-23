@@ -43,7 +43,7 @@ class UpdateService {
       final releaseNotes = response['release_notes'] as String?;
 
       // Debugging logs
-      // print("Local: $currentVersion ($currentBuild) vs Remote: $latestVersion ($latestBuild)");
+      print("Local: $currentVersion ($currentBuild) vs Remote: $latestVersion ($latestBuild)");
 
       // 3. Compare Logic
 

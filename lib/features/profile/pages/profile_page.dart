@@ -1,5 +1,7 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lovely/common/models/user_model.dart';
 import 'package:lovely/common/services/notification_service.dart';
 import 'package:lovely/common/services/profile_service.dart';
@@ -40,9 +42,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       currentUserId: userId ?? '',
     );
 
-    // FIX: Check if the provider already has data immediately.
-    // Since main.dart watches this provider, it might already be loaded.
-    // ref.listen in build only catches *subsequent* changes.
     final userAsync = ref.read(userProfileStreamProvider);
     userAsync.whenOrNull(
       data: (user) => _controller.setUser(user),
@@ -83,9 +82,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
+  void _openSettings() {
+    context.push('/settings', extra: _controller);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Keep watching to ensure the provider stays alive and updates
     ref.watch(userProfileStreamProvider);
 
     ref.listen(pendingLinkingCodeProvider, (previous, next) {
@@ -103,11 +105,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       next.when(
         data: (user) => _controller.setUser(user),
         error: (e, stack) => _controller.setError(e.toString()),
-        loading: () {
-          // Optional: You could set loading here if you want to show
-          // loading spinner on subsequent refreshes, but usually
-          // keeping the old data is better UX.
-        },
+        loading: () {},
       );
     });
 
@@ -238,22 +236,35 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ],
           ),
           child: SafeArea(
-            child: Column(
+            child: Stack(
               children: [
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      if (showToggle)
-                        ProfileToggle(
-                          selectedTab: _controller.selectedTab,
-                          onTabChanged: _controller.switchTab,
-                        ),
-                    ],
+                // 1. Center Toggle
+                if (showToggle)
+                  Align(
+                    alignment: Alignment.topCenter,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10),
+                      child: ProfileToggle(
+                        selectedTab: _controller.selectedTab,
+                        onTabChanged: _controller.switchTab,
+                      ),
+                    ),
                   ),
-                ),
+                
+                // 2. Settings Icon (Top Right)
+                if (isMe)
+                  Positioned(
+                    top: 10,
+                    right: 16,
+                    child: IconButton(
+                      onPressed: _openSettings,
+                      icon: const Icon(Icons.settings_rounded),
+                      color: Colors.white,
+                      style: IconButton.styleFrom(
+                        backgroundColor: Colors.black.withOpacity(0.1),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -328,30 +339,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 foregroundColor: theme.colorScheme.onSurface,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 elevation: 0,
-                shape: buttonShape,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _controller.signOut(context),
-              icon: Icon(
-                Icons.logout_rounded,
-                size: 18,
-                color: theme.colorScheme.error,
-              ),
-              label: Text(
-                "Sign Out",
-                style: TextStyle(
-                  color: theme.colorScheme.error,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(
-                  color: theme.colorScheme.error.withOpacity(0.5),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: buttonShape,
               ),
             ),
